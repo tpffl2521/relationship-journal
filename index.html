@@ -615,6 +615,8 @@ async function shareEntryImage(id){
 function downloadSharePNG(){ const cvs=document.getElementById('share-canvas'); const url=cvs.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download='relationship-moment.png'; a.click(); }
 async function nativeShareImage(){ try{ const cvs=document.getElementById('share-canvas'); const blob=await new Promise(res=>cvs.toBlob(res,'image/png',0.95)); const file=new File([blob],'relationship-moment.png',{type:'image/png'}); if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Relationship Journal', text:'Momen kita 💖'}); } else { downloadSharePNG(); } }catch{ downloadSharePNG(); } }
 
+
+
 /*****************
  * SYNC (Code/QR) *
  *****************/
