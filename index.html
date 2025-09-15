@@ -225,6 +225,7 @@
       <div id="scan-wrap" style="margin-top:1rem; display:none">
         <video id="qr-video" autoplay playsinline></video>
       </div>
+      <div id="sync-qr" style="margin-top:1rem; text-align:center;"></div>
       <p class="hint">Cara pakai cepat: Pengirim klik <b>Buat Kode</b> → kirim ke Penerima (salin atau tampilkan sebagai QR via situs pembuat QR). Penerima klik <b>Tempel & Gabungkan</b> atau <b>Scan QR</b>.</p>
     </div>
   </section>
@@ -286,6 +287,7 @@
   <button id="fab-add" class="fab pink" title="Catatan Baru">＋</button>
   <button id="fab-lock" class="fab white" title="Kunci/Buka">🔒</button>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <script>
 /*****************
@@ -618,7 +620,19 @@ async function nativeShareImage(){ try{ const cvs=document.getElementById('share
  *****************/
 function utf8ToB64(str){ return btoa(unescape(encodeURIComponent(str))); }
 function b64ToUtf8(b64){ return decodeURIComponent(escape(atob(b64))); }
-function generateSyncCode(){ const payload={t:'rj-sync', v:1, ts:Date.now(), entries: state.entries}; const str=utf8ToB64(JSON.stringify(payload)); $('#sync-code').value=str; toast('Kode dibuat'); }
+function generateSyncCode(){
+  const payload={t:'rj-sync', v:1, ts:Date.now(), entries: state.entries};
+  const str=utf8ToB64(JSON.stringify(payload));
+  $('#sync-code').value=str;
+  toast('Kode & QR dibuat');
+
+  const qrWrap = document.getElementById('sync-qr');
+  if(qrWrap){
+    qrWrap.innerHTML='';
+    new QRCode(qrWrap, { text: str, width: 220, height: 220 });
+  }
+}
+
 async function applySyncCode(str){ try{ const json=JSON.parse(b64ToUtf8(str.trim())); if(json.t!=='rj-sync') throw new Error('bad'); const merged = mergeEntries(json.entries||[]); await persist(); renderList(); renderInsights(); toast('Gabung '+merged+' entri'); }catch(e){ toast('Kode tidak valid'); } }
 function applySyncCodeFromField(){ const t=$('#sync-code').value||''; if(!t.trim()) { toast('Tempel kode dulu'); return; } applySyncCode(t); }
 function copySyncCode(){ const v=$('#sync-code').value||''; if(!v){ generateSyncCode(); setTimeout(copySyncCode, 120); return; } navigator.clipboard.writeText(v).then(()=>toast('Kode disalin')); }
@@ -666,5 +680,6 @@ function stopScanQR(){ try{ rafId && cancelAnimationFrame(rafId); const v=$('#qr
   document.getElementById('date').value = nowISO(); updatePreview(); if(state.anniv) document.getElementById('anniv').value = state.anniv; setupPWA();
 })();
 </script>
+
 </body>
 </html>
