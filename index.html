@@ -14,7 +14,7 @@
   body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
     color:var(--ink); background:
       radial-gradient(1000px 600px at 10% 0%, #ffe0f0 0%, transparent 60%),
-      radial-gradient(800px 600px at 100% 0%, #ffd6ec 0%, transparent 60%), var(--bg);}
+      radial-gradient(800px 600px at 100% 0%, #ffd6ec 0%, transparent 60%), var(--bg);} 
   header{position:sticky; top:0; z-index:10; backdrop-filter: blur(8px);
     background:linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6)); border-bottom:1px solid var(--edge);}  
   .bar{display:flex; align-items:center; gap:.75rem; padding:.8rem .9rem;}  
@@ -31,7 +31,7 @@
   .tab{padding:.45rem .8rem; border-radius:999px; border:1px solid var(--edge); background:#fff; cursor:pointer; font-weight:600; font-size:.92rem}
   .tab[aria-selected="true"]{background:var(--pink); color:white; border-color:transparent; box-shadow:0 6px 16px #ff4da633}
 
-  main{max-width:940px; margin:0 auto; padding:1rem .9rem 5rem}
+  main{max-width:940px; margin:0 auto; padding:1rem .9rem 6rem}
   .panel{display:none}
   .panel.active{display:block; animation:fade .25s ease}
   @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
@@ -79,6 +79,15 @@
 
   .lockscreen{display:none;}
   .lockscreen.active{display:block}
+
+  /* Modal & Sync */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:50}
+  .modal.active{display:flex}
+  .modal .sheet{background:#fff; border-radius:16px; padding:1rem; max-width:720px; width:92%; border:1px solid var(--edge); box-shadow:0 20px 40px #0003}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:.9rem}
+  textarea.mono{min-height:120px}
+  video#qr-video{width:100%; border-radius:12px; border:1px solid var(--edge); background:#000}
+  canvas.share{display:block; max-width:100%; width:100%; background:#fff; border:1px solid var(--edge); border-radius:12px;}
 </style>
 </head>
 <body>
@@ -92,6 +101,7 @@
     <button class="tab" role="tab" data-tab="timeline">Timeline</button>
     <button class="tab" role="tab" data-tab="search">Cari</button>
     <button class="tab" role="tab" data-tab="insights">Insights</button>
+    <button class="tab" role="tab" data-tab="sync">Sync</button>
     <button class="tab" role="tab" data-tab="settings">Pengaturan</button>
   </nav>
 </header>
@@ -198,6 +208,27 @@
     </div>
   </section>
 
+  <!-- SYNC -->
+  <section id="panel-sync" class="panel">
+    <div class="card">
+      <h3>Sinkronisasi (Beta, tanpa server)</h3>
+      <p class="hint">Kirim/terima jurnal antar perangkat via <b>kode</b> atau <b>QR</b>. Tidak perlu login, data hanya lewat antar-perangkat.</p>
+      <div class="row" style="margin:.6rem 0 1rem">
+        <button id="sync-generate" class="btn pink">Buat Kode (Pengirim)</button>
+        <button id="sync-copy" class="btn ghost">Salin Kode</button>
+        <button id="sync-apply" class="btn">Tempel & Gabungkan</button>
+        <button id="sync-scan" class="btn">Scan QR (Penerima)</button>
+        <button id="sync-stop" class="btn warn">Stop Kamera</button>
+      </div>
+      <label for="sync-code">Kode / Teks QR</label>
+      <textarea id="sync-code" class="mono" placeholder="Tempel kode di sini…"></textarea>
+      <div id="scan-wrap" style="margin-top:1rem; display:none">
+        <video id="qr-video" autoplay playsinline></video>
+      </div>
+      <p class="hint">Cara pakai cepat: Pengirim klik <b>Buat Kode</b> → kirim ke Penerima (salin atau tampilkan sebagai QR via situs pembuat QR). Penerima klik <b>Tempel & Gabungkan</b> atau <b>Scan QR</b>.</p>
+    </div>
+  </section>
+
   <!-- PENGATURAN -->
   <section id="panel-settings" class="panel">
     <div class="card">
@@ -231,10 +262,24 @@
       <input id="unlock-pass" type="password" placeholder="Password" />
       <div class="row" style="margin-top:.6rem">
         <button id="unlock" class="btn pink">Buka</button>
+        <button class="btn ghost" onclick="switchTab('sync')">Buka tab Sync</button>
       </div>
     </div>
   </section>
 </main>
+
+<!-- Share Modal -->
+<div id="share-modal" class="modal" role="dialog" aria-modal="true" aria-label="Bagikan Gambar">
+  <div class="sheet">
+    <h3>Bagikan sebagai Gambar</h3>
+    <canvas id="share-canvas" class="share" width="1080" height="1350" aria-label="Gambar momen"></canvas>
+    <div class="row" style="margin-top:.6rem">
+      <button id="share-save" class="btn pink">Download PNG</button>
+      <button id="share-sys" class="btn">Share via Sistem</button>
+      <button id="share-close" class="btn ghost">Tutup</button>
+    </div>
+  </div>
+</div>
 
 <!-- FAB quick actions -->
 <div class="floating">
@@ -249,11 +294,11 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const state = {
-  entries: [],
-  private: false,
-  locked: false,
-  passwordSalt: null,
-  iv: null,
+  entries: [],          // daftar catatan
+  private: false,       // mode private aktif?
+  locked: false,        // UI terkunci?
+  passwordSalt: null,   // base64
+  iv: null,             // AES-GCM IV (base64)
   passHint: '',
   anniv: null,
 };
@@ -291,7 +336,7 @@ async function deriveKey(password, saltB64){
 }
 async function encryptJSON(obj, password){
   const {key, saltB64} = await deriveKey(password, state.passwordSalt);
-  state.passwordSalt = saltB64;
+  state.passwordSalt = saltB64; // simpan salt baru
   const iv = crypto.getRandomValues(new Uint8Array(12));
   state.iv = btoa(String.fromCharCode(...iv));
   const data = enc.encode(JSON.stringify(obj));
@@ -365,7 +410,7 @@ function renderLock(){
   st.classList.toggle('locked', state.locked);
   st.querySelector('.text').textContent = state.locked? 'Terkunci' : (state.private? 'Private Mode' : 'Terbuka');
   $('#lockscreen').classList.toggle('active', state.locked);
-  ['new','timeline','search','insights'].forEach(n=>{
+  ['new','timeline','search','insights','sync'].forEach(n=>{
     const disabled = state.locked;
     $(`#panel-${n}`).style.pointerEvents = disabled? 'none' : 'auto';
     $(`#panel-${n}`).style.filter = disabled? 'blur(3px) grayscale(.2)' : 'none';
@@ -388,7 +433,8 @@ function renderList(target='#list', data=state.entries){
       const bEdit=btn('Edit', ()=>loadToForm(e.id));
       const bDel=btn('Hapus', ()=>delEntry(e.id), 'danger');
       const bShare=btn('Salin', ()=>copyText(renderShareText(e)));
-      row.append(bEdit,bDel,bShare);
+      const bImg=btn('Bagikan Gambar', ()=>shareEntryImage(e.id));
+      row.append(bEdit,bDel,bShare,bImg);
     box.appendChild(row);
     art.appendChild(box);
     wrap.appendChild(art);
@@ -424,7 +470,7 @@ async function addOrUpdate(currentId){
     tags: ($('#tags').value||'').split(',').map(s=>s.trim()).filter(Boolean),
     photo: $('#preview-img').src || '',
   };
-  const words = entry.content.trim().split(' ').filter(Boolean).length;
+  const words = entry.content.trim().split(/\s+/).filter(Boolean).length;
   entry.words = words;
   const i = state.entries.findIndex(x=>x.id===entry.id);
   if(i>=0) state.entries[i]=entry; else state.entries.unshift(entry);
@@ -540,6 +586,54 @@ function setupPWA(){
 }
 
 /*****************
+ * SHARE IMAGE    *
+ *****************/
+function openShareModal(){ $('#share-modal').classList.add('active'); }
+function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+  const words=(text||'').split(/\s+/); let line='', yy=y; const lines=[];
+  for(const w of words){ const test=line? line+' '+w : w; if(ctx.measureText(test).width>maxWidth){ lines.push(line); line=w; } else { line=test; }
+  }
+  if(line) lines.push(line); for(const l of lines){ ctx.fillText(l, x, yy); yy+=lineHeight; } return yy;
+}
+async function shareEntryImage(id){
+  const e = state.entries.find(x=>x.id===id); if(!e){ toast('Catatan tidak ditemukan'); return; }
+  const cvs = document.getElementById('share-canvas'); const ctx=cvs.getContext('2d');
+  const grd = ctx.createLinearGradient(0,0,0,cvs.height); grd.addColorStop(0,'#fff5fa'); grd.addColorStop(1,'#ffffff'); ctx.fillStyle=grd; ctx.fillRect(0,0,cvs.width,cvs.height);
+  const pad=64; ctx.fillStyle='#ffffff'; ctx.strokeStyle='#ffd1e6'; ctx.lineWidth=2; ctx.fillRect(pad,pad,cvs.width-pad*2,cvs.height-pad*2); ctx.strokeRect(pad,pad,cvs.width-pad*2,cvs.height-pad*2);
+  ctx.fillStyle='#ff4da6'; ctx.font='bold 44px system-ui'; ctx.fillText('❤ Relationship Journal', pad+24, pad+56);
+  ctx.fillStyle='#374151'; ctx.font='700 48px system-ui'; ctx.fillText((e.mood||'')+' '+(e.title||'(Tanpa judul)'), pad+24, pad+120);
+  ctx.font='24px system-ui'; ctx.fillStyle='#6b7280';
+  const dt=new Date(e.date); const pretty=isNaN(dt)? e.date : dt.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  ctx.fillText(pretty, pad+24, pad+160);
+  if(e.photo){ const img=new Image(); await new Promise(r=>{ img.onload=r; img.src=e.photo; }); const w=952, h=600; const x=pad+24, y=pad+190; ctx.drawImage(img, x, y, w, h); }
+  ctx.fillStyle='#1f2937'; ctx.font='28px system-ui'; const maxW = cvs.width - (pad+24)*2; const startY = pad + 820; const endY = wrapText(ctx, e.content||'', pad+24, startY, maxW, 40);
+  ctx.font='24px system-ui'; ctx.fillStyle='#6b7280'; ctx.fillText('#'+(e.tags||[]).join('  #'), pad+24, Math.min(endY+28, cvs.height-pad-24));
+  openShareModal();
+}
+function downloadSharePNG(){ const cvs=document.getElementById('share-canvas'); const url=cvs.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download='relationship-moment.png'; a.click(); }
+async function nativeShareImage(){ try{ const cvs=document.getElementById('share-canvas'); const blob=await new Promise(res=>cvs.toBlob(res,'image/png',0.95)); const file=new File([blob],'relationship-moment.png',{type:'image/png'}); if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Relationship Journal', text:'Momen kita 💖'}); } else { downloadSharePNG(); } }catch{ downloadSharePNG(); } }
+
+/*****************
+ * SYNC (Code/QR) *
+ *****************/
+function utf8ToB64(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64ToUtf8(b64){ return decodeURIComponent(escape(atob(b64))); }
+function generateSyncCode(){ const payload={t:'rj-sync', v:1, ts:Date.now(), entries: state.entries}; const str=utf8ToB64(JSON.stringify(payload)); $('#sync-code').value=str; toast('Kode dibuat'); }
+async function applySyncCode(str){ try{ const json=JSON.parse(b64ToUtf8(str.trim())); if(json.t!=='rj-sync') throw new Error('bad'); const merged = mergeEntries(json.entries||[]); await persist(); renderList(); renderInsights(); toast('Gabung '+merged+' entri'); }catch(e){ toast('Kode tidak valid'); } }
+function applySyncCodeFromField(){ const t=$('#sync-code').value||''; if(!t.trim()) { toast('Tempel kode dulu'); return; } applySyncCode(t); }
+function copySyncCode(){ const v=$('#sync-code').value||''; if(!v){ generateSyncCode(); setTimeout(copySyncCode, 120); return; } navigator.clipboard.writeText(v).then(()=>toast('Kode disalin')); }
+function mergeEntries(incoming){ let added=0; const map = new Map(state.entries.map(e=>[e.id,e])); incoming.forEach(e=>{ if(!map.has(e.id)){ state.entries.push(e); added++; } else { const cur=map.get(e.id); if((e.date||'')>(cur.date||'')){ Object.assign(cur, e); } } }); state.entries.sort((a,b)=> b.date.localeCompare(a.date)); return added; }
+
+// QR Scan
+let mediaStream=null, detector=null, rafId=null; 
+async function startScanQR(){
+  if(!('BarcodeDetector' in window)){ toast('Pemindai QR tidak tersedia di browser ini'); return; }
+  try{ detector = new BarcodeDetector({formats:['qr_code']}); mediaStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); const video=$('#qr-video'); video.srcObject=mediaStream; $('#scan-wrap').style.display='block'; const tick=async()=>{ if(video.readyState===video.HAVE_ENOUGH_DATA){ try{ const codes=await detector.detect(video); if(codes && codes[0]){ $('#sync-code').value=codes[0].rawValue; stopScanQR(); applySyncCodeFromField(); return; } }catch{} } rafId=requestAnimationFrame(tick); }; tick(); }
+  catch(err){ console.error(err); toast('Gagal akses kamera'); }
+}
+function stopScanQR(){ try{ rafId && cancelAnimationFrame(rafId); const v=$('#qr-video'); v.pause(); v.srcObject=null; mediaStream && mediaStream.getTracks().forEach(t=>t.stop()); }catch{} $('#scan-wrap').style.display='none'; }
+
+/*****************
  * INIT & EVENTS  *
  *****************/
 (async function init(){
@@ -559,6 +653,14 @@ function setupPWA(){
   document.getElementById('lock-now').onclick=lockNow;
   document.getElementById('unlock').onclick=unlockNow;
   document.getElementById('anniv').addEventListener('change', ()=>{ state.anniv = document.getElementById('anniv').value||null; saveMeta(); renderInsights(); });
+  document.getElementById('sync-generate').onclick=generateSyncCode;
+  document.getElementById('sync-copy').onclick=copySyncCode;
+  document.getElementById('sync-apply').onclick=applySyncCodeFromField;
+  document.getElementById('sync-scan').onclick=startScanQR;
+  document.getElementById('sync-stop').onclick=stopScanQR;
+  document.getElementById('share-save').onclick=downloadSharePNG;
+  document.getElementById('share-sys').onclick=nativeShareImage;
+  document.getElementById('share-close').onclick=()=>$('#share-modal').classList.remove('active');
   document.getElementById('fab-add').onclick=()=> switchTab('new');
   document.getElementById('fab-lock').onclick=()=> state.locked? (async ()=>{ const pw = prompt('Password:'); if(!pw) return; try{ const cipher = localStorage.getItem(STORAGE_KEY)||''; const data = await decryptJSON(cipher, pw); state.entries = data.entries||[]; sessionStorage.setItem('rj_pw', pw); state.locked=false; saveMeta(); renderLock(); renderList(); renderInsights(); toast('Terbuka'); }catch{ toast('Gagal membuka'); }})() : lockNow();
   document.getElementById('date').value = nowISO(); updatePreview(); if(state.anniv) document.getElementById('anniv').value = state.anniv; setupPWA();
