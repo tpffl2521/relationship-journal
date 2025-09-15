@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Relationship Journal — Diary Berdua</title>
+<meta name="theme-color" content="#ff4da6" />
+<style>
+  :root{
+    --pink:#ff4da6; --pink-2:#ff77c4; --bg:#fff5fa; --ink:#1f2937; --muted:#6b7280; --card:#ffffff; --edge:#ffd1e6;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    color:var(--ink); background:
+      radial-gradient(1000px 600px at 10% 0%, #ffe0f0 0%, transparent 60%),
+      radial-gradient(800px 600px at 100% 0%, #ffd6ec 0%, transparent 60%), var(--bg);}
+  header{position:sticky; top:0; z-index:10; backdrop-filter: blur(8px);
+    background:linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.6)); border-bottom:1px solid var(--edge);}  
+  .bar{display:flex; align-items:center; gap:.75rem; padding:.8rem .9rem;}  
+  .logo{display:flex; align-items:center; gap:.6rem; font-weight:800}
+  .heart{width:28px; height:28px; background: conic-gradient(from 180deg at 50% 50%, var(--pink), var(--pink-2)); border-radius:8px; position:relative}
+  .heart:before,.heart:after{content:""; position:absolute; width:14px; height:14px; background:var(--pink); border-radius:50%; top:-4px}
+  .heart:before{left:2px} .heart:after{right:2px}
+  .title{font-size:1.05rem}
+  .status{margin-left:auto; font-size:.85rem; color:var(--muted)}
+  .status .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:.35rem; background:#10b981}
+  .status.locked .dot{background:#ef4444}
+  
+  .tabs{display:flex; gap:.4rem; padding:.4rem .9rem .9rem; flex-wrap:wrap}
+  .tab{padding:.45rem .8rem; border-radius:999px; border:1px solid var(--edge); background:#fff; cursor:pointer; font-weight:600; font-size:.92rem}
+  .tab[aria-selected="true"]{background:var(--pink); color:white; border-color:transparent; box-shadow:0 6px 16px #ff4da633}
+
+  main{max-width:940px; margin:0 auto; padding:1rem .9rem 5rem}
+  .panel{display:none}
+  .panel.active{display:block; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+  .card{background:var(--card); border:1px solid var(--edge); border-radius:18px; box-shadow:0 10px 24px #ff4da61a; padding:1rem;}
+  .grid{display:grid; gap:1rem}
+  @media (min-width:680px){ .grid.twocol{grid-template-columns:1.2fr .8fr} }
+
+  label{display:block; font-weight:700; margin:.2rem 0 .35rem}
+  input[type="text"], input[type="date"], input[type="password"], textarea, select{width:100%; border:1px solid var(--edge); background:#fff; border-radius:12px; padding:.75rem .9rem; font:inherit;}
+  textarea{min-height:120px; resize:vertical}
+  .hint{font-size:.82rem; color:var(--muted)}
+
+  .btn{--bg:#fff; --fg:var(--ink); display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.7rem 1rem; border-radius:12px; border:1px solid var(--edge); background:var(--bg); color:var(--fg); cursor:pointer; font-weight:700}
+  .btn.pink{--bg:var(--pink); --fg:#fff; border-color:transparent; box-shadow:0 8px 18px #ff4da633}
+  .btn.ghost{background:#fff}
+  .btn.warn{--bg:#fff4e5; --fg:#b45309; border-color:#ffd49a}
+  .btn.danger{--bg:#fff1f2; --fg:#9f1239; border-color:#fecdd3}
+  .btn.block{width:100%}
+
+  .row{display:flex; gap:.6rem; flex-wrap:wrap}
+  .row > .btn{flex:1}
+
+  .entry-list{display:grid; gap:.9rem}
+  .entry{display:grid; grid-template-columns:64px 1fr; gap:.8rem; align-items:start; padding:.8rem; border:1px solid var(--edge); border-radius:16px; background:#fff}
+  .thumb{width:64px; height:64px; border-radius:12px; object-fit:cover; border:1px solid var(--edge); background:#fff}
+  .entry h4{margin:.1rem 0; font-size:1rem}
+  .meta{font-size:.82rem; color:var(--muted)}
+  .tags{display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.3rem}
+  .tag{font-size:.74rem; padding:.25rem .5rem; background:#fff0f7; border:1px solid var(--edge); border-radius:999px}
+  .entry .actions{display:flex; gap:.4rem; margin-top:.4rem}
+  .empty{padding:1rem; text-align:center; color:var(--muted)}
+
+  .floating{position:fixed; right:14px; bottom:14px; display:flex; gap:.5rem; z-index:20}
+  .fab{width:52px; height:52px; border-radius:50%; display:grid; place-items:center; border:none; cursor:pointer; box-shadow:0 10px 24px #ff4da655}
+  .fab.pink{background:var(--pink); color:#fff}
+  .fab.white{background:#fff; border:1px solid var(--edge);}
+
+  /* Insights */
+  .chart-wrap{display:grid; gap:1rem}
+  canvas{max-width:100%; height:auto; background:#fff; border:1px solid var(--edge); border-radius:14px}
+  .stat{display:grid; grid-template-columns:1fr auto; gap:.4rem; padding:.7rem .9rem; border:1px dashed var(--edge); border-radius:12px; background:#fff}
+  .dday{display:flex; gap:.8rem; align-items:center; padding:.8rem; border:1px solid var(--edge); border-radius:12px; background:#fff}
+  .dday b{font-size:1.1rem}
+
+  .lockscreen{display:none;}
+  .lockscreen.active{display:block}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo"><span class="heart"></span> <span class="title">Relationship Journal</span></div>
+    <div id="lock-status" class="status"><span class="dot"></span><span class="text">Terbuka</span></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Navigasi">
+    <button class="tab" role="tab" aria-selected="true" data-tab="new">Tulis</button>
+    <button class="tab" role="tab" data-tab="timeline">Timeline</button>
+    <button class="tab" role="tab" data-tab="search">Cari</button>
+    <button class="tab" role="tab" data-tab="insights">Insights</button>
+    <button class="tab" role="tab" data-tab="settings">Pengaturan</button>
+  </nav>
+</header>
+
+<main>
+  <!-- TULIS BARU -->
+  <section id="panel-new" class="panel active">
+    <div class="grid twocol">
+      <div class="card">
+        <h2>Catatan Baru</h2>
+        <div class="row">
+          <div style="flex:1">
+            <label for="date">Tanggal</label>
+            <input id="date" type="date" />
+          </div>
+          <div style="flex:1">
+            <label for="mood">Mood</label>
+            <select id="mood">
+              <option value="😍">😍 Happy-in-love</option>
+              <option value="😊">😊 Senang</option>
+              <option value="🤔">🤔 Mikir</option>
+              <option value="😢">😢 Sedih</option>
+              <option value="😤">😤 Kesal</option>
+              <option value="🙏">🙏 Bersyukur</option>
+            </select>
+          </div>
+        </div>
+        <label for="title">Judul</label>
+        <input id="title" type="text" placeholder="Judul momen..." />
+        <label for="tags">Tag (pisah dengan koma)</label>
+        <input id="tags" type="text" placeholder="tanggal-jadian, anniversary, liburan" />
+        <label for="content">Isi</label>
+        <textarea id="content" placeholder="Tulis cerita, perasaan, momen penting..."></textarea>
+        <label for="photo">Foto</label>
+        <input id="photo" type="file" accept="image/*" />
+        <div class="hint">Foto otomatis diperkecil agar hemat penyimpanan.</div>
+        <div class="row" style="margin-top:.8rem">
+          <button id="save" class="btn pink">Simpan Catatan</button>
+          <button id="clear" class="btn ghost">Bersihkan</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Preview</h3>
+        <article id="preview" class="entry" aria-live="polite">
+          <img id="preview-img" class="thumb" alt="" />
+          <div>
+            <h4 id="preview-title">(Judul)</h4>
+            <div class="meta"><span id="preview-date">—</span> • <span id="preview-mood">😍</span></div>
+            <div id="preview-text" class="hint" style="margin-top:.35rem">Tampilan ringkas isi catatan akan muncul di sini.</div>
+            <div id="preview-tags" class="tags"></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section id="panel-timeline" class="panel">
+    <div class="card">
+      <div class="row" style="margin-bottom:.6rem">
+        <button id="sort-new" class="btn">Urut Terbaru</button>
+        <button id="sort-old" class="btn">Urut Terlama</button>
+        <button id="export-all" class="btn ghost">Export JSON</button>
+        <label class="btn ghost" style="position:relative; overflow:hidden;">
+          Import JSON
+          <input id="import-file" type="file" accept="application/json" style="position:absolute; inset:0; opacity:0; cursor:pointer" />
+        </label>
+      </div>
+      <div id="list" class="entry-list"></div>
+      <div id="empty" class="empty">Belum ada catatan. Ayo tulis momen pertama! 💖</div>
+    </div>
+  </section>
+
+  <!-- CARI -->
+  <section id="panel-search" class="panel">
+    <div class="card">
+      <label for="q">Cari kata, tag, atau mood</label>
+      <input id="q" type="text" placeholder="contoh: anniversary, liburan, 😍" />
+      <div id="results" class="entry-list" style="margin-top:.9rem"></div>
+    </div>
+  </section>
+
+  <!-- INSIGHTS -->
+  <section id="panel-insights" class="panel">
+    <div class="card">
+      <h3>Insights & Kenangan</h3>
+      <div class="dday">
+        <div>📅 <b>Countdown Anniversary Berikutnya:</b> <span id="dday-text">—</span></div>
+      </div>
+      <div class="chart-wrap" style="margin-top:1rem">
+        <div>
+          <h4 style="margin:.2rem 0 .5rem">Distribusi Mood</h4>
+          <canvas id="moodChart" width="900" height="420" aria-label="Chart mood"></canvas>
+          <div class="hint">Grafik berdasarkan total entri per emoji mood.</div>
+        </div>
+        <div>
+          <h4 style="margin:.2rem 0 .5rem">Statistik Ringkas</h4>
+          <div class="stat"><span>Total entri</span><b id="stat-total">0</b></div>
+          <div class="stat"><span>Rata-rata kata/entri</span><b id="stat-avg">0</b></div>
+          <div class="stat"><span>Mood terbanyak</span><b id="stat-top">—</b></div>
+          <div class="stat"><span>Hari teraktif</span><b id="stat-day">—</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PENGATURAN -->
+  <section id="panel-settings" class="panel">
+    <div class="card">
+      <h3>Keamanan & Privasi</h3>
+      <p class="hint">Semua data disimpan <b>lokal</b> di perangkat ini (localStorage). Aktifkan <b>Private Mode</b> untuk mengenkripsi dengan password.</p>
+      <div class="row" style="margin:.6rem 0 1rem">
+        <button id="toggle-private" class="btn pink">Aktifkan Private Mode</button>
+        <button id="lock-now" class="btn warn">Kunci Sekarang</button>
+      </div>
+      <div class="grid">
+        <div>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Buat/ubah password" />
+        </div>
+        <div>
+          <label for="anniv">Tanggal Jadian/Anniversary</label>
+          <input id="anniv" type="date" />
+          <div class="hint">Dipakai untuk hitung countdown di tab Insights.</div>
+        </div>
+        <div class="row">
+          <button id="set-pass" class="btn">Simpan Password</button>
+          <button id="clear-all" class="btn danger">Hapus Semua Data</button>
+        </div>
+      </div>
+      <p class="hint">Ingat baik-baik password. Jika lupa, data terenkripsi tidak bisa dibuka.</p>
+    </div>
+
+    <div class="card lockscreen" id="lockscreen">
+      <h3>🔒 Terkunci</h3>
+      <p class="hint">Masukkan password untuk membuka jurnal.</p>
+      <input id="unlock-pass" type="password" placeholder="Password" />
+      <div class="row" style="margin-top:.6rem">
+        <button id="unlock" class="btn pink">Buka</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- FAB quick actions -->
+<div class="floating">
+  <button id="fab-add" class="fab pink" title="Catatan Baru">＋</button>
+  <button id="fab-lock" class="fab white" title="Kunci/Buka">🔒</button>
+</div>
+
+<script>
+/*****************
+ * UTIL & STATE  *
+ *****************/
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const state = {
+  entries: [],
+  private: false,
+  locked: false,
+  passwordSalt: null,
+  iv: null,
+  passHint: '',
+  anniv: null,
+};
+
+const STORAGE_KEY = 'rj_v3';
+const META_KEY = 'rj_meta_v3';
+
+function saveMeta(){
+  localStorage.setItem(META_KEY, JSON.stringify({
+    private: state.private, locked: state.locked, salt: state.passwordSalt,
+    iv: state.iv, passHint: state.passHint||'', anniv: state.anniv||null
+  }));
+}
+function loadMeta(){
+  try{ const m = JSON.parse(localStorage.getItem(META_KEY)||'{}');
+    state.private = !!m.private; state.locked = !!m.locked;
+    state.passwordSalt = m.salt || null; state.iv = m.iv || null; state.passHint = m.passHint||''; state.anniv = m.anniv||null;
+  }catch(err){console.warn('meta load',err)}
+}
+
+function nowISO(){ return new Date().toISOString().slice(0,10); }
+function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+function toast(msg){ const t=document.createElement('div'); t.textContent=msg; t.style.position='fixed'; t.style.left='50%'; t.style.bottom='18px'; t.style.transform='translateX(-50%)'; t.style.background='white'; t.style.border='1px solid var(--edge)'; t.style.padding='.6rem .9rem'; t.style.borderRadius='12px'; t.style.boxShadow='0 10px 24px #0001'; t.style.zIndex=30; document.body.appendChild(t); setTimeout(()=>t.remove(), 1800); }
+
+/*****************
+ * CRYPTO (AES)  *
+ *****************/
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+async function deriveKey(password, saltB64){
+  const salt = saltB64? Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0)) : crypto.getRandomValues(new Uint8Array(16));
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:120000, hash:'SHA-256'}, baseKey, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  return {key, saltB64: btoa(String.fromCharCode(...salt))};
+}
+async function encryptJSON(obj, password){
+  const {key, saltB64} = await deriveKey(password, state.passwordSalt);
+  state.passwordSalt = saltB64;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  state.iv = btoa(String.fromCharCode(...iv));
+  const data = enc.encode(JSON.stringify(obj));
+  const cipher = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, data);
+  const b = new Uint8Array(cipher);
+  return btoa(String.fromCharCode(...b));
+}
+async function decryptJSON(cipherB64, password){
+  const {key} = await deriveKey(password, state.passwordSalt);
+  const iv = Uint8Array.from(atob(state.iv||''), c=>c.charCodeAt(0));
+  const buf = Uint8Array.from(atob(cipherB64), c=>c.charCodeAt(0));
+  const plain = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, buf);
+  return JSON.parse(dec.decode(plain));
+}
+
+/*****************
+ * STORAGE I/O    *
+ *****************/
+async function persist(){
+  try{
+    if(state.private){
+      const pw = sessionStorage.getItem('rj_pw') || '';
+      if(!pw){ state.locked = true; saveMeta(); renderLock(); return; }
+      const cipher = await encryptJSON({entries: state.entries}, pw);
+      localStorage.setItem(STORAGE_KEY, cipher);
+      state.locked = false; saveMeta();
+    }else{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({entries: state.entries}));
+      state.locked = false; saveMeta();
+    }
+  }catch(err){ console.error('persist err',err); toast('Gagal menyimpan.'); }
+}
+async function restore(){
+  loadMeta();
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw){ state.entries = []; return; }
+  try{
+    if(state.private){ state.locked = true; saveMeta(); }
+    else{ const data = JSON.parse(raw); state.entries = data.entries||[]; }
+  }catch(err){ console.warn('restore failed',err); state.entries=[]; }
+}
+
+/*****************
+ * IMAGE RESIZE   *
+ *****************/
+function fileToDataURL(file, max=1280){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader(); fr.onerror=rej; fr.onload=()=>{
+      const img = new Image(); img.onload=()=>{
+        const c=document.createElement('canvas'); const ctx=c.getContext('2d');
+        let w=img.width, h=img.height;
+        if(w>h && w>max){ h = Math.round(h*max/w); w=max; }
+        else if(h>=w && h>max){ w = Math.round(w*max/h); h=max; }
+        c.width=w; c.height=h; ctx.drawImage(img,0,0,w,h);
+        c.toBlob(blob=>{ const fr2=new FileReader(); fr2.onload=()=>res(fr2.result); fr2.onerror=rej; fr2.readAsDataURL(blob||file); }, 'image/jpeg', 0.82);
+      }; img.src=fr.result;
+    }; fr.readAsDataURL(file);
+  });
+}
+
+/*****************
+ * RENDER & UI    *
+ *****************/
+function switchTab(name){
+  $$(".panel").forEach(p=>p.classList.remove('active'));
+  $(`#panel-${name}`).classList.add('active');
+  $$(".tab").forEach(t=>t.setAttribute('aria-selected', String(t.dataset.tab===name)));
+}
+function renderLock(){
+  const st = $('#lock-status');
+  st.classList.toggle('locked', state.locked);
+  st.querySelector('.text').textContent = state.locked? 'Terkunci' : (state.private? 'Private Mode' : 'Terbuka');
+  $('#lockscreen').classList.toggle('active', state.locked);
+  ['new','timeline','search','insights'].forEach(n=>{
+    const disabled = state.locked;
+    $(`#panel-${n}`).style.pointerEvents = disabled? 'none' : 'auto';
+    $(`#panel-${n}`).style.filter = disabled? 'blur(3px) grayscale(.2)' : 'none';
+  });
+}
+function renderList(target='#list', data=state.entries){
+  const wrap = $(target);
+  wrap.innerHTML='';
+  if(!data.length){ $('#empty')?.classList.remove('hidden'); return; }
+  $('#empty')?.classList.add('hidden');
+  data.forEach(e=>{
+    const art=document.createElement('article'); art.className='entry'; art.dataset.id=e.id;
+    const img=document.createElement('img'); img.className='thumb'; img.alt=''; img.src=e.photo||''; art.appendChild(img);
+    const box=document.createElement('div');
+    const h=document.createElement('h4'); h.textContent=`${e.mood||''} ${e.title||'(Tanpa judul)'}`; box.appendChild(h);
+    const meta=document.createElement('div'); meta.className='meta'; meta.textContent=`${e.date} • ${e.words||0} kata`; box.appendChild(meta);
+    if(e.content){ const p=document.createElement('div'); p.className='hint'; p.textContent=e.content.slice(0,160)+(e.content.length>160?'…':''); box.appendChild(p); }
+    const tags=document.createElement('div'); tags.className='tags'; (e.tags||[]).forEach(t=>{ const el=document.createElement('span'); el.className='tag'; el.textContent='#'+t; tags.appendChild(el); }); box.appendChild(tags);
+    const row=document.createElement('div'); row.className='actions';
+      const bEdit=btn('Edit', ()=>loadToForm(e.id));
+      const bDel=btn('Hapus', ()=>delEntry(e.id), 'danger');
+      const bShare=btn('Salin', ()=>copyText(renderShareText(e)));
+      row.append(bEdit,bDel,bShare);
+    box.appendChild(row);
+    art.appendChild(box);
+    wrap.appendChild(art);
+  });
+}
+function btn(text, onClick, cls='ghost'){ const b=document.createElement('button'); b.className='btn '+cls; b.textContent=text; b.onclick=onClick; return b; }
+function renderShareText(e){ return `❤ ${e.title}
+Tanggal: ${e.date}
+Mood: ${e.mood}
+Tag: ${(e.tags||[]).join(', ')}
+
+${e.content}`; }
+function copyText(t){ navigator.clipboard.writeText(t).then(()=>toast('Disalin')); }
+function updatePreview(){
+  $('#preview-title').textContent = $('#title').value || '(Judul)';
+  $('#preview-date').textContent = $('#date').value || nowISO();
+  $('#preview-mood').textContent = $('#mood').value;
+  $('#preview-text').textContent = ($('#content').value||'').slice(0,160) || 'Tampilan ringkas isi catatan akan muncul di sini.';
+  const tags = ($('#tags').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const wrap=$('#preview-tags'); wrap.innerHTML=''; tags.forEach(t=>{ const s=document.createElement('span'); s.className='tag'; s.textContent='#'+t; wrap.appendChild(s); });
+}
+
+/*****************
+ * ENTRY CRUD     *
+ *****************/
+async function addOrUpdate(currentId){
+  const entry={
+    id: currentId || uid(),
+    date: $('#date').value || nowISO(),
+    mood: $('#mood').value,
+    title: $('#title').value.trim()||'(Tanpa judul)',
+    content: $('#content').value.trim(),
+    tags: ($('#tags').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+    photo: $('#preview-img').src || '',
+  };
+  const words = entry.content.trim().split(' ').filter(Boolean).length;
+  entry.words = words;
+  const i = state.entries.findIndex(x=>x.id===entry.id);
+  if(i>=0) state.entries[i]=entry; else state.entries.unshift(entry);
+  await persist();
+  renderList(); toast('Tersimpan');
+  clearForm(); switchTab('timeline');
+}
+function clearForm(){
+  $('#date').value = nowISO();
+  $('#mood').value = '😍';
+  $('#title').value=''; $('#content').value=''; $('#tags').value='';
+  $('#photo').value=''; $('#preview-img').src='';
+  updatePreview();
+}
+function loadToForm(id){
+  const e = state.entries.find(x=>x.id===id); if(!e) return;
+  switchTab('new');
+  $('#date').value=e.date; $('#mood').value=e.mood; $('#title').value=e.title; $('#content').value=e.content; $('#tags').value=(e.tags||[]).join(', ');
+  $('#preview-img').src=e.photo||''; updatePreview();
+  $('#save').dataset.editId = e.id; $('#save').textContent='Perbarui Catatan';
+}
+async function delEntry(id){ if(!confirm('Hapus catatan ini?')) return; state.entries = state.entries.filter(x=>x.id!==id); await persist(); renderList(); toast('Dihapus'); }
+
+/*****************
+ * SEARCH         *
+ *****************/
+function doSearch(){
+  const q = $('#q').value.trim().toLowerCase();
+  const res = state.entries.filter(e=>{ const hay=[e.title, e.content, e.mood, ...(e.tags||[])].join(' ').toLowerCase(); return hay.includes(q); });
+  renderList('#results', res);
+}
+
+/*****************
+ * EXPORT/IMPORT  *
+ *****************/
+function exportAll(){
+  const payload = state.private? {encrypted:true, meta: {salt: state.passwordSalt, iv: state.iv}, blob: localStorage.getItem(STORAGE_KEY)}
+                               : {encrypted:false, data:{entries: state.entries}};
+  const url = URL.createObjectURL(new Blob([JSON.stringify(payload)], {type:'application/json'}));
+  const a=document.createElement('a'); a.href=url; a.download='relationship-journal.json'; a.click(); URL.revokeObjectURL(url);
+}
+async function importAll(file){
+  const text = await file.text(); const data = JSON.parse(text);
+  if(data.encrypted){ localStorage.setItem(STORAGE_KEY, data.blob||''); state.private = true; state.locked = true; state.passwordSalt = data.meta?.salt||null; state.iv = data.meta?.iv||null; saveMeta(); toast('Data terenkripsi diimpor. Buka dengan password.'); renderLock(); }
+  else{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data.data||{entries:[]})); state.private=false; state.locked=false; saveMeta(); await restore(); renderList(); toast('Data diimpor.'); }
+}
+
+/*****************
+ * INSIGHTS       *
+ *****************/
+function renderInsights(){
+  const total = state.entries.length; $('#stat-total') && ($('#stat-total').textContent = String(total));
+  const avg = total? Math.round(state.entries.reduce((a,e)=>a+(e.words||0),0)/total) : 0; $('#stat-avg') && ($('#stat-avg').textContent = String(avg));
+  const counts = {}; state.entries.forEach(e=>{ counts[e.mood] = (counts[e.mood]||0)+1; });
+  const topMood = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—'; $('#stat-top') && ($('#stat-top').textContent = topMood);
+  const dayCounts = {}; state.entries.forEach(e=>{ const d=new Date(e.date).toLocaleDateString('id-ID',{weekday:'long'}); dayCounts[d]=(dayCounts[d]||0)+1; });
+  const topDay = Object.entries(dayCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—'; $('#stat-day') && ($('#stat-day').textContent = topDay);
+  const cvs = document.getElementById('moodChart'); if(cvs){ drawBarChart(cvs, counts); }
+  const text = computeCountdownText(); const dd = document.getElementById('dday-text'); if(dd) dd.textContent = text;
+}
+function drawBarChart(canvas, counts){
+  const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  const labels = Object.keys(counts); const values = labels.map(k=>counts[k]);
+  const pad = 48, gap = 18; const W = canvas.width, H = canvas.height; const chartW = W - pad*2; const chartH = H - pad*2;
+  const maxV = Math.max(1, ...values);
+  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, H-pad); ctx.lineTo(W-pad, H-pad); ctx.stroke();
+  const n = labels.length || 1; const barW = Math.max(24, (chartW - gap*(n-1)) / n);
+  labels.forEach((lb, i)=>{ const v = values[i] || 0; const h = (v/maxV) * (chartH - 10); const x = pad + i*(barW+gap); const y = H - pad - h; const grad = ctx.createLinearGradient(0, y, 0, y+h); grad.addColorStop(0, '#ff77c4'); grad.addColorStop(1, '#ff4da6'); ctx.fillStyle = grad; ctx.fillRect(x, y, barW, h); ctx.fillStyle = '#374151'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.fillText(lb||'?', x+barW/2, H-pad+18); ctx.fillText(String(v), x+barW/2, y-6); });
+}
+function computeCountdownText(){
+  if(!state.anniv) return 'Set dulu di Pengaturan.';
+  const today = new Date();
+  const parts = (state.anniv||'').split('-'); if(parts.length<3) return 'Tanggal tidak valid';
+  const y = Number(parts[0]); const m = Number(parts[1]); const d = Number(parts[2]); if(!y||!m||!d) return 'Tanggal tidak valid';
+  const thisYear = new Date(today.getFullYear(), m-1, d);
+  const next = thisYear >= new Date(today.toDateString()) ? thisYear : new Date(today.getFullYear()+1, m-1, d);
+  const diff = Math.ceil((next - today)/ (1000*60*60*24));
+  return diff===0? 'Hari ini! Selamat anniversary 💖' : String(diff)+' hari lagi ('+next.toLocaleDateString('id-ID')+')';
+}
+
+/*****************
+ * PRIVATE MODE   *
+ *****************/
+async function setPassword(){
+  const pw = $('#password').value.trim(); if(pw.length<4){ toast('Password minimal 4 karakter.'); return; }
+  sessionStorage.setItem('rj_pw', pw); state.private = true; state.locked = false; await persist(); saveMeta(); renderLock(); toast('Password disimpan & Private Mode aktif.');
+}
+async function togglePrivate(){
+  if(!state.private){ const ok = confirm('Aktifkan Private Mode? Data akan dienkripsi dengan password. Pastikan menyetel password dulu.'); if(!ok) return; if(!sessionStorage.getItem('rj_pw')){ toast('Isi Password lalu klik Simpan Password.'); return; } state.private=true; await persist(); saveMeta(); renderLock(); toast('Private Mode aktif.'); }
+  else{ const ok = confirm('Nonaktifkan Private Mode? Data akan disimpan tanpa enkripsi.'); if(!ok) return; state.private=false; await persist(); saveMeta(); renderLock(); toast('Private Mode nonaktif.'); }
+}
+function lockNow(){ state.locked = state.private; saveMeta(); renderLock(); toast('Dikunci.'); }
+async function unlockNow(){
+  const pw = $('#unlock-pass').value.trim(); if(!pw){ toast('Masukkan password.'); return; }
+  try{ const cipher = localStorage.getItem(STORAGE_KEY)||''; const data = await decryptJSON(cipher, pw); state.entries = data.entries||[]; sessionStorage.setItem('rj_pw', pw); state.locked=false; saveMeta(); renderLock(); renderList(); renderInsights(); toast('Terbuka'); }
+  catch(err){ console.error(err); toast('Password salah atau data rusak'); }
+}
+
+/*****************
+ * PWA (Manifest + Service Worker) *
+ *****************/
+function setupPWA(){
+  try{
+    const manifest = { name:'Relationship Journal', short_name:'RJ', description:'Diary berdua: momen, perasaan, foto dengan Private Mode.', start_url:'./', display:'standalone', background_color:'#fff5fa', theme_color:'#ff4da6', icons:[ {src:'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><rect width=%22128%22 height=%22128%22 rx=%2228%22 fill=%22%23ff4da6%22/><text x=%2264%22 y=%2280%22 font-size=%2280%22 text-anchor=%22middle%22 fill=%22white%22>❤</text></svg>', sizes:'128x128', type:'image/svg+xml'}]};
+    const manURL = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'}));
+    let link = document.querySelector('link[rel="manifest"]'); if(!link){ link = document.createElement('link'); link.rel='manifest'; document.head.appendChild(link); } link.href = manURL;
+    if(!document.querySelector('meta[name="theme-color"]')){ const meta=document.createElement('meta'); meta.name='theme-color'; meta.content='#ff4da6'; document.head.appendChild(meta); }
+    if('serviceWorker' in navigator){
+      const swCode = "const CACHE='rj-cache-v1';const ASSETS=['./','./index.html'];self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{const req=e.request;if(req.method!=='GET') return; e.respondWith(caches.match(req).then(r=> r || fetch(req).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put(req, copy));return res;}).catch(()=>caches.match('./'))));});";
+      const swURL = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'})); navigator.serviceWorker.register(swURL);
+    }
+  }catch(err){ console.warn('PWA setup failed', err); }
+}
+
+/*****************
+ * INIT & EVENTS  *
+ *****************/
+(async function init(){
+  clearForm(); await restore(); renderLock(); renderList(); renderInsights();
+  $$('.tab').forEach(t=> t.onclick=()=> { switchTab(t.dataset.tab); if(t.dataset.tab==='insights') renderInsights(); });
+  ['date','mood','title','content','tags'].forEach(id=> { const el=document.getElementById(id); if(el) el.addEventListener('input', updatePreview); });
+  const photo = document.getElementById('photo'); if(photo) photo.addEventListener('change', async e=>{ const f=e.target.files && e.target.files[0]; if(!f) return; const url = await fileToDataURL(f, 1600); document.getElementById('preview-img').src = url; updatePreview(); });
+  document.getElementById('save').onclick=()=> addOrUpdate(document.getElementById('save').dataset.editId||null);
+  document.getElementById('clear').onclick=()=>{ document.getElementById('save').dataset.editId=''; document.getElementById('save').textContent='Simpan Catatan'; clearForm(); };
+  document.getElementById('sort-new').onclick=()=>{ state.entries.sort((a,b)=> b.date.localeCompare(a.date)); renderList(); renderInsights(); };
+  document.getElementById('sort-old').onclick=()=>{ state.entries.sort((a,b)=> a.date.localeCompare(b.date)); renderList(); renderInsights(); };
+  document.getElementById('q').addEventListener('input', doSearch);
+  document.getElementById('export-all').onclick=exportAll;
+  document.getElementById('import-file').addEventListener('change', e=> e.target.files && e.target.files[0] && importAll(e.target.files[0]));
+  document.getElementById('set-pass').onclick=setPassword;
+  document.getElementById('toggle-private').onclick=togglePrivate;
+  document.getElementById('lock-now').onclick=lockNow;
+  document.getElementById('unlock').onclick=unlockNow;
+  document.getElementById('anniv').addEventListener('change', ()=>{ state.anniv = document.getElementById('anniv').value||null; saveMeta(); renderInsights(); });
+  document.getElementById('fab-add').onclick=()=> switchTab('new');
+  document.getElementById('fab-lock').onclick=()=> state.locked? (async ()=>{ const pw = prompt('Password:'); if(!pw) return; try{ const cipher = localStorage.getItem(STORAGE_KEY)||''; const data = await decryptJSON(cipher, pw); state.entries = data.entries||[]; sessionStorage.setItem('rj_pw', pw); state.locked=false; saveMeta(); renderLock(); renderList(); renderInsights(); toast('Terbuka'); }catch{ toast('Gagal membuka'); }})() : lockNow();
+  document.getElementById('date').value = nowISO(); updatePreview(); if(state.anniv) document.getElementById('anniv').value = state.anniv; setupPWA();
+})();
+</script>
+</body>
+</html>
